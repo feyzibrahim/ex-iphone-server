@@ -23,14 +23,22 @@ const getOrder = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw Error("Invalid ID!!!");
+    let find = {};
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      find._id = id;
+    } else {
+      find.orderId = id;
     }
 
-    const order = await Order.findOne({ _id: id }).populate(
-      "products.productId",
-      { imageURL: 1, name: 1 }
-    );
+    // console.log(find);
+
+    const order = await Order.findOne(find).populate("products.productId", {
+      imageURL: 1,
+      name: 1,
+    });
+
+    // console.log(order);
 
     if (!order) {
       throw Error("No Such Order");
@@ -45,9 +53,26 @@ const getOrder = async (req, res) => {
 // Get Orders List
 const getOrders = async (req, res) => {
   try {
-    const { status, search, page = 1, limit = 10 } = req.query;
+    const {
+      status,
+      search,
+      page = 1,
+      limit = 10,
+      startingDate,
+      endingDate,
+    } = req.query;
 
     let filter = {};
+
+    // Date
+    if (startingDate) {
+      const date = new Date(startingDate);
+      filter.createdAt = { $gte: date };
+    }
+    if (endingDate) {
+      const date = new Date(endingDate);
+      filter.createdAt = { ...filter.createdAt, $lte: date };
+    }
 
     if (status) {
       if (!isValidStatus(status)) {
@@ -84,7 +109,9 @@ const getOrders = async (req, res) => {
       .populate("products.productId", { imageURL: 1, name: 1 })
       .sort({ createdAt: -1 });
 
-    res.status(200).json({ orders });
+    const totalAvailableOrders = await Order.countDocuments(filter);
+
+    res.status(200).json({ orders, totalAvailableOrders });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
