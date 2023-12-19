@@ -59,7 +59,7 @@ const validateOTP = async (req, res) => {
       message: "OTP validation Success",
     });
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(400).json({ error: error.message });
   }
 };
 
@@ -159,7 +159,7 @@ const newPassword = async (req, res) => {
 
     const oldUserData = await User.findOne({ email });
 
-    const match = await bcrypt.compare(password, oldUserData.password);
+    const match = bcrypt.compare(password, oldUserData.password);
 
     if (match) {
       throw Error("Provide new Password");

@@ -14,17 +14,24 @@ const cookieConfig = {
 
 // To get user data on initial page load.
 const getUserDataFirst = async (req, res) => {
-  if (!req.cookies.user_token) {
-    return res.status(401).json({ error: "No token found" });
+  try {
+    const token = req.cookies.user_token;
+    if (!token) {
+      throw Error("No token found");
+    }
+
+    const { _id } = jwt.verify(token, process.env.SECRET);
+
+    const user = await User.findOne({ _id }, { password: 0 });
+
+    if (!user) {
+      throw Error("Cannot find user");
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
-
-  const token = req.cookies.user_token;
-
-  const { _id } = jwt.verify(token, process.env.SECRET);
-
-  const user = await User.findOne({ _id }, { password: 0 });
-
-  res.status(200).json(user);
 };
 
 const signUpUser = async (req, res) => {
@@ -89,17 +96,44 @@ const editUser = async (req, res) => {
       formData = { ...formData, profileImgURL: profileImgURL };
     }
 
-    const user = await User.findOneAndUpdate(
+    const updatedUser = await User.findOneAndUpdate(
       { _id },
       { $set: { ...formData } },
       { new: true }
     );
 
-    if (!user) {
+    if (!updatedUser) {
       throw Error("No such User");
     }
 
+    const user = await User.findOne({ _id }, { password: 0 });
+
     res.status(200).json(user);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const token = req.cookies.user_token;
+
+    const { _id } = jwt.verify(token, process.env.SECRET);
+
+    if (!mongoose.Types.ObjectId.isValid(_id)) {
+      throw Error("Invalid ID!!!");
+    }
+
+    const { currentPassword, password, passwordAgain } = req.body;
+
+    const user = await User.changePassword(
+      _id,
+      currentPassword,
+      password,
+      passwordAgain
+    );
+
+    return res.status(200).json({ user, success: true });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -111,4 +145,5 @@ module.exports = {
   loginUser,
   logoutUser,
   editUser,
+  changePassword,
 };
