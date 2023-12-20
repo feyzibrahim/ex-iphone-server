@@ -85,12 +85,7 @@ const forgotPassword = async (req, res) => {
     const otpExists = await OTP.findOne({ email });
 
     if (otpExists) {
-      res.status(200).json({
-        msg: "OTP is already send to your email Address, If cannot find Try again after 5 minutes",
-        success: true,
-      });
-
-      return;
+      await OTP.findOneAndDelete({ _id: otpExists._id });
     }
 
     let otp = Math.floor(Math.random() * (999999 - 100000 + 1)) + 100000;
